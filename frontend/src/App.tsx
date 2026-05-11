@@ -161,13 +161,26 @@ function AppRoutes() {
   if (!leagueId) return <LeagueSelect />;
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <NavBar />
-      <main>
+      <main className="flex-1">
         <Routes>
           <Route path="/" element={<MatchList />} />
         </Routes>
       </main>
+      <footer className="border-border text-muted-foreground border-t px-4 py-3 text-center text-xs">
+        <span>&copy; {new Date().getFullYear()} </span>
+        <a
+          href="https://github.com/OptimusCrime/fpl-live-match"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-foreground underline underline-offset-2 transition-colors"
+        >
+          OptimusCrime/fpl-live-match
+        </a>
+        <span className="mx-2 opacity-40">&middot;</span>
+        <span>Not affiliated with Fantasy Premier League</span>
+      </footer>
     </div>
   );
 }
