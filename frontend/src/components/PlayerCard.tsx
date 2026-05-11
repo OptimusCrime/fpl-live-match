@@ -40,7 +40,7 @@ export default function PlayerCard({ player, totalEntries, onClick }: Props) {
           />
         </div>
 
-        {pct !== null && (
+        {pct !== null && pct > 0 && (
           <span className={`absolute -top-1 -right-3 rounded px-1 py-0.5 text-[9px] font-bold shadow-sm ${ownershipColor(pct)}`}>
             {Math.round(pct)}%
           </span>
