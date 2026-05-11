@@ -1,0 +1,39 @@
+services:
+  fpl-live-match-nginx-prod:
+    image: "ghcr.io/optimuscrime/fpl-live-match/fpl-live-match-nginx:latest"
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "8198:80"
+    depends_on:
+      - fpl-live-match-go-prod
+    networks:
+      - fpl-live-match-network
+
+  fpl-live-match-go-prod:
+    image: "ghcr.io/optimuscrime/fpl-live-match/fpl-live-match-go:latest"
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "8199"
+    environment:
+      REDIS_PORT: "6379"
+      REDIS_HOST: "fpl-live-match-redis-prod"
+    depends_on:
+      fpl-live-match-redis-prod:
+        condition: service_healthy
+    networks:
+      - fpl-live-match-network
+
+  fpl-live-match-redis-prod:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - fpl-live-match-network
+
+networks:
+  fpl-live-match-network:

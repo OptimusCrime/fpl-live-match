@@ -1,0 +1,62 @@
+name: fpl-live-match
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      ##############################################################
+      # Workflow setup
+      ##############################################################
+
+      - name: Git Checkout
+        uses: actions/checkout@v3
+
+      ##############################################################
+      # Frontend
+      ##############################################################
+
+      - name: Setup Node & install dependencies
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: frontend/.nvmrc  # Use the same version as configured for the project
+
+      - name: Install
+        run: |
+          cd frontend && npm ci
+
+      - name: Build
+        run: |
+          cd frontend && npm run build:prod
+
+      ##############################################################
+      # Build and push docker images
+      ##############################################################
+
+      - name: Build and publish nginx to Registry
+        uses: elgohr/Publish-Docker-Github-Action@v5
+        env:
+          ENV: prod
+        with:
+          registry: https://ghcr.io
+          name: optimuscrime/fpl-live-match/fpl-live-match-nginx
+          username: ${{ github.actor }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+          dockerfile: docker_nginx.Dockerfile
+          tags: "latest,${{ env.RELEASE_VERSION }}"
+
+      - name: Build and publish go to Registry
+        uses: elgohr/Publish-Docker-Github-Action@v5
+        env:
+          ENV: prod
+        with:
+          registry: https://ghcr.io
+          name: optimuscrime/fpl-live-match/fpl-live-match-go
+          username: ${{ github.actor }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+          dockerfile: docker_go.Dockerfile
+          tags: "latest,${{ env.RELEASE_VERSION }}"
