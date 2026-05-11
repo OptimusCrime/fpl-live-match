@@ -1,6 +1,15 @@
 import type { MatchPlayer, MatchTeam } from "@/types/api";
 import PlayerCard from "./PlayerCard";
 
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+
 // FPL position order from goalkeeper to forward
 const POSITION_ORDER = ["GKP", "DEF", "MID", "FWD"];
 
@@ -35,15 +44,17 @@ function groupByPosition(players: MatchPlayer[]): PositionRow[] {
 interface RowProps {
   row: PositionRow;
   totalEntries: number;
+  avgPoints: number;
   onPlayerClick: (player: MatchPlayer) => void;
 }
 
-function PositionRowView({ row, totalEntries, onPlayerClick }: RowProps) {
+function PositionRowView({ row, totalEntries, avgPoints, onPlayerClick }: RowProps) {
   const card = (player: MatchPlayer) => (
     <PlayerCard
       key={player.id}
       player={player}
       totalEntries={totalEntries}
+      avgPoints={avgPoints}
       onClick={onPlayerClick}
     />
   );
@@ -69,10 +80,11 @@ interface HalfProps {
   team: MatchTeam;
   reversed?: boolean;
   totalEntries: number;
+  avgPoints: number;
   onPlayerClick: (player: MatchPlayer) => void;
 }
 
-function TeamHalf({ team, reversed = false, totalEntries, onPlayerClick }: HalfProps) {
+function TeamHalf({ team, reversed = false, totalEntries, avgPoints, onPlayerClick }: HalfProps) {
   const rows = groupByPosition(team.players);
   const orderedRows = reversed ? [...rows].reverse() : rows;
 
@@ -83,6 +95,7 @@ function TeamHalf({ team, reversed = false, totalEntries, onPlayerClick }: HalfP
           key={row.position}
           row={row}
           totalEntries={totalEntries}
+          avgPoints={avgPoints}
           onPlayerClick={onPlayerClick}
         />
       ))}
@@ -98,6 +111,9 @@ interface Props {
 }
 
 export default function PitchView({ home, away, totalEntries, onPlayerClick }: Props) {
+  const allPoints = [...home.players, ...away.players].map((p) => p.livePoints);
+  const avgPoints = median(allPoints);
+
   return (
     <div className="w-full overflow-x-auto rounded-xl">
       <div
@@ -115,6 +131,7 @@ export default function PitchView({ home, away, totalEntries, onPlayerClick }: P
           <TeamHalf
             team={home}
             totalEntries={totalEntries}
+            avgPoints={avgPoints}
             onPlayerClick={onPlayerClick}
           />
         </div>
@@ -125,6 +142,7 @@ export default function PitchView({ home, away, totalEntries, onPlayerClick }: P
             team={away}
             reversed
             totalEntries={totalEntries}
+            avgPoints={avgPoints}
             onPlayerClick={onPlayerClick}
           />
         </div>

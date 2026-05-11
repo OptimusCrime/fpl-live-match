@@ -7,16 +7,57 @@ function ownershipColor(pct: number): string {
   return "bg-white/70 text-gray-600";
 }
 
+function lerpColor(a: [number, number, number], b: [number, number, number], t: number): string {
+  const r = Math.round(a[0] + (b[0] - a[0]) * t);
+  const g = Math.round(a[1] + (b[1] - a[1]) * t);
+  const bl = Math.round(a[2] + (b[2] - a[2]) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+const YELLOW: [number, number, number] = [251, 191, 36];
+const ORANGE: [number, number, number] = [249, 115, 22];
+const RED: [number, number, number]    = [239, 68, 68];
+const CEILING = 15;
+
+function pointsBadgeStyle(points: number, avg: number): { background: string; color: string } {
+  if (points < avg) {
+    return { background: "#475569", color: "#cbd5e1" };
+  }
+
+  if (points === avg) {
+    return { background: "rgba(255,255,255,0.9)", color: "#111827" };
+  }
+
+  const range = Math.max(CEILING - avg, 1);
+  const t = Math.min((points - avg) / range, 1);
+
+  let bg: string;
+  if (points > CEILING) {
+    bg = "#dc2626";
+  } else if (t <= 0.5) {
+    bg = lerpColor(YELLOW, ORANGE, t * 2);
+  } else {
+    bg = lerpColor(ORANGE, RED, (t - 0.5) * 2);
+  }
+
+  return { background: bg, color: "white" };
+}
+
 interface Props {
   player: MatchPlayer;
   totalEntries?: number;
+  avgPoints?: number;
   onClick?: (player: MatchPlayer) => void;
 }
 
-export default function PlayerCard({ player, totalEntries, onClick }: Props) {
+export default function PlayerCard({ player, totalEntries, avgPoints, onClick }: Props) {
   const pct = totalEntries && totalEntries > 0
     ? (player.ownedCount / totalEntries) * 100
     : null;
+
+  const badgeStyle = avgPoints !== undefined
+    ? pointsBadgeStyle(player.livePoints, avgPoints)
+    : { background: "rgba(255,255,255,0.9)", color: "#111827" };
 
   return (
     <button
@@ -69,7 +110,10 @@ export default function PlayerCard({ player, totalEntries, onClick }: Props) {
       </span>
 
       {/* Points and minutes */}
-      <span className="rounded bg-white/90 px-1 py-0.5 text-[10px] font-bold text-gray-900 shadow-sm whitespace-nowrap">
+      <span
+        className="rounded px-1 py-0.5 text-[10px] font-bold shadow-sm whitespace-nowrap"
+        style={badgeStyle}
+      >
         {player.livePoints} pts · {player.minutes}&apos;
       </span>
     </button>
