@@ -1,0 +1,25 @@
+name: fpl-live-match-clean-packages
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  clean-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clean nginx container packages
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: fpl-live-match/fpl-live-match-nginx
+          package-type: 'container'
+          min-versions-to-keep: 3
+          token: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Clean go container packages
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: fpl-live-match/fpl-live-match-go
+          package-type: 'container'
+          min-versions-to-keep: 3
+          token: ${{ secrets.REGISTRY_TOKEN }}

@@ -1,9 +1,8 @@
-name: fpl-live-match
+name: fpl-live-match-build
 on:
   push:
     branches:
       - main
-  pull_request:
 
 jobs:
   build:
@@ -14,16 +13,16 @@ jobs:
       ##############################################################
 
       - name: Git Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       ##############################################################
       # Frontend
       ##############################################################
 
       - name: Setup Node & install dependencies
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
-          node-version-file: frontend/.nvmrc  # Use the same version as configured for the project
+          node-version-file: frontend/.nvmrc
 
       - name: Install
         run: |
