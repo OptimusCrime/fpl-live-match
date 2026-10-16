@@ -24,6 +24,10 @@ jobs:
         with:
           node-version-file: frontend/.nvmrc
 
+      - name: Upgrade npm
+        run: |
+          npm install -g npm@11.19.0
+
       - name: Install
         run: |
           cd frontend && npm ci
