@@ -2,6 +2,7 @@ package leaguematch
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -81,7 +82,12 @@ func (h *Handler) LeagueMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profileID, _ := strconv.Atoi(r.Header.Get("X-CURRENT-PROFILE-ID"))
+	var profileID int
+	if raw := r.Header.Get("X-CURRENT-PROFILE-ID"); raw != "" {
+		if profileID, err = strconv.Atoi(raw); err != nil {
+			slog.WarnContext(ctx, "ignoring invalid X-CURRENT-PROFILE-ID header", "value", raw, "err", err)
+		}
+	}
 
 	result, err := h.s.LeagueMatch(ctx, leagueID, matchID, profileID)
 	if err != nil {

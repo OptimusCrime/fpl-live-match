@@ -3,6 +3,8 @@ package leaguematch
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"strconv"
 	"sync"
 
@@ -31,7 +33,7 @@ func (s *Service) LeagueMatch(ctx context.Context, leagueID string, matchID int,
 
 	members, err := s.loadLeagueMembers(ctx, leagueID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load members for league %s: %w", leagueID, err)
 	}
 
 	allPicks, err := s.loadAllPicks(ctx, leagueID, gwInfo.ID, members)
@@ -48,7 +50,7 @@ func (s *Service) LeagueMatch(ctx context.Context, leagueID string, matchID int,
 
 	matchResult, err := s.fixture.Match(ctx, matchID, leagueOwned)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load match %d: %w", matchID, err)
 	}
 
 	ownedCount := make(map[int]int)
@@ -82,7 +84,7 @@ func (s *Service) loadLeagueMembers(ctx context.Context, leagueID string) ([]Mem
 	for page := 1; len(members) < MaxLeagueMembers; page++ {
 		standings, err := s.fpl.LeagueStandings(ctx, leagueID, page)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("standings page %d: %w", page, err)
 		}
 		for _, e := range standings.Standings.Results {
 			members = append(members, Member{
@@ -120,6 +122,8 @@ func (s *Service) loadAllPicks(ctx context.Context, _ string, gwID int, members 
 
 			raw, err := s.fpl.Picks(ctx, strconv.Itoa(entryID), gwID)
 			if err != nil || raw == nil {
+				slog.WarnContext(ctx, "could not fetch picks for league member, excluding from ownership",
+					"entry", entryID, "gw", gwID, "err", err)
 				results[idx] = result{entryID: entryID}
 				return
 			}

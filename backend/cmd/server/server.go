@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,8 +29,10 @@ func main() {
 		port = "8199"
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logLevel := parseLogLevel(os.Getenv("LOG_LEVEL"))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
+	slog.Info("logger configured", "level", logLevel)
 
 	redisCache, err := redisclient.New()
 	if err != nil {
@@ -51,6 +54,7 @@ func main() {
 	leagueMatchHandler := leaguematch.NewHandler(leagueMatchService)
 
 	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
@@ -70,6 +74,7 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
+		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
 
 	go func() {
@@ -89,5 +94,19 @@ func main() {
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("shutdown error", "err", err)
+	}
+}
+
+// parseLogLevel maps LOG_LEVEL (debug, info, warn, error) to a slog level, defaulting to info.
+func parseLogLevel(v string) slog.Level {
+	switch strings.ToLower(v) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
 	}
 }

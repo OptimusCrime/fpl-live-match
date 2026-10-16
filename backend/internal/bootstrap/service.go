@@ -3,6 +3,8 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 
 	"github.com/OptimusCrime/fpl-live-match/backend/internal/fpl"
 )
@@ -20,7 +22,7 @@ func New(fpl fpl.Client) *Service {
 func (s *Service) Teams(ctx context.Context) (map[int]Team, error) {
 	b, err := s.fpl.Bootstrap(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load bootstrap for teams: %w", err)
 	}
 	return mapTeams(b.Teams), nil
 }
@@ -28,7 +30,7 @@ func (s *Service) Teams(ctx context.Context) (map[int]Team, error) {
 func (s *Service) Players(ctx context.Context) ([]Player, error) {
 	b, err := s.fpl.Bootstrap(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load bootstrap for players: %w", err)
 	}
 	return mapPlayers(b.Elements), nil
 }
@@ -36,7 +38,7 @@ func (s *Service) Players(ctx context.Context) ([]Player, error) {
 func (s *Service) Positions(ctx context.Context) (map[int]string, error) {
 	b, err := s.fpl.Bootstrap(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load bootstrap for positions: %w", err)
 	}
 	return mapPositions(b.ElementTypes), nil
 }
@@ -44,7 +46,11 @@ func (s *Service) Positions(ctx context.Context) (map[int]string, error) {
 func (s *Service) CurrentGameweek(ctx context.Context) (GameweekInfo, error) {
 	b, err := s.fpl.Bootstrap(ctx)
 	if err != nil {
-		return GameweekInfo{}, err
+		return GameweekInfo{}, fmt.Errorf("load bootstrap for current gameweek: %w", err)
 	}
-	return currentGameweek(b.Events), nil
+	gw := currentGameweek(b.Events)
+	if gw.ID == 0 {
+		slog.WarnContext(ctx, "no current or finished gameweek found in bootstrap", "events", len(b.Events))
+	}
+	return gw, nil
 }

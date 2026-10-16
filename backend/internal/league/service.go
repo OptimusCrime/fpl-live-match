@@ -3,6 +3,8 @@ package league
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"strconv"
 	"sync"
 
@@ -49,7 +51,7 @@ func (s *Service) LoadOwnership(ctx context.Context, leagueID string) (*Ownershi
 
 	allEntries, err := s.fetchAllStandings(ctx, leagueID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch standings for league %s: %w", leagueID, err)
 	}
 
 	type result struct {
@@ -74,8 +76,12 @@ func (s *Service) LoadOwnership(ctx context.Context, leagueID string) (*Ownershi
 
 	counts := make(map[int]int)
 	owners := make(map[int][]OwnerEntry)
+	failed := 0
 	for i, r := range results {
 		if r.err != nil || r.picks == nil {
+			failed++
+			slog.WarnContext(ctx, "could not fetch picks for league member, excluding from ownership",
+				"league", leagueID, "entry", allEntries[i].Entry, "gw", gwInfo.ID, "err", r.err)
 			continue
 		}
 		entry := allEntries[i]
@@ -87,6 +93,11 @@ func (s *Service) LoadOwnership(ctx context.Context, leagueID string) (*Ownershi
 				Rank:       entry.Rank,
 			})
 		}
+	}
+
+	if failed > 0 {
+		slog.WarnContext(ctx, "ownership computed with missing picks",
+			"league", leagueID, "gw", gwInfo.ID, "failed", failed, "total", len(allEntries))
 	}
 
 	return &Ownership{Counts: counts, Owners: owners, TotalEntries: len(allEntries)}, nil
@@ -115,7 +126,7 @@ func (s *Service) fetchAllStandings(ctx context.Context, leagueID string) ([]fpl
 	for page := 1; ; page++ {
 		standings, err := s.fpl.LeagueStandings(ctx, leagueID, page)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("page %d: %w", page, err)
 		}
 		allEntries = append(allEntries, standings.Standings.Results...)
 		if !standings.Standings.HasNext || len(allEntries) >= maxStandingsEntries {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -77,7 +78,7 @@ func (s *Service) Fixtures(ctx context.Context) (*FixturesResult, error) {
 
 	rawFixtures, err := s.fpl.Fixtures(ctx, gwInfo.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch fixtures for gw %d: %w", gwInfo.ID, err)
 	}
 
 	teams, err := s.bootstrap.Teams(ctx)
@@ -109,7 +110,7 @@ func (s *Service) Match(ctx context.Context, fixtureID int, leagueOwned map[int]
 
 	rawFixtures, err := s.fpl.Fixtures(ctx, gwInfo.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch fixtures for gw %d: %w", gwInfo.ID, err)
 	}
 
 	var raw *fpl.Fixture
@@ -120,12 +121,12 @@ func (s *Service) Match(ctx context.Context, fixtureID int, leagueOwned map[int]
 		}
 	}
 	if raw == nil {
-		return nil, ErrFixtureNotFound
+		return nil, fmt.Errorf("fixture %d in gw %d: %w", fixtureID, gwInfo.ID, ErrFixtureNotFound)
 	}
 
 	live, err := s.fpl.Live(ctx, raw.Event)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch live data for gw %d: %w", raw.Event, err)
 	}
 
 	teams, err := s.bootstrap.Teams(ctx)
@@ -172,6 +173,8 @@ func (s *Service) Match(ctx context.Context, fixtureID int, leagueOwned map[int]
 		if el.Photo != "" {
 			if n, err := strconv.Atoi(strings.TrimSuffix(el.Photo, ".jpg")); err == nil {
 				code = n
+			} else {
+				slog.DebugContext(ctx, "could not parse player photo, falling back to code", "player", el.ID, "photo", el.Photo, "err", err)
 			}
 		}
 

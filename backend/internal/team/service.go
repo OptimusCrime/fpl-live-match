@@ -3,6 +3,7 @@ package team
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/OptimusCrime/fpl-live-match/backend/internal/fpl"
 )
@@ -34,7 +35,7 @@ func NewService(fpl fpl.Client) *Service {
 func (s *Service) Leagues(ctx context.Context, id string) (*TeamLeagues, error) {
 	e, err := s.fpl.Entry(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch entry %s: %w", id, err)
 	}
 
 	leagues := make([]League, len(e.Leagues.Classic))

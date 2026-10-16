@@ -2,6 +2,7 @@ package fpl
 
 import (
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -41,6 +42,9 @@ func (cb *circuitBreaker) allow() bool {
 func (cb *circuitBreaker) success() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
+	if cb.failures >= cbThreshold {
+		slog.Info("fpl circuit breaker closed, upstream recovered", "failures", cb.failures)
+	}
 	cb.failures = 0
 	cb.backoff = 0
 	cb.openUntil = time.Time{}
@@ -59,5 +63,10 @@ func (cb *circuitBreaker) failure() {
 			cb.backoff = min(cb.backoff*2, cbMaxBackoff)
 		}
 		cb.openUntil = time.Now().Add(cb.backoff)
+		slog.Error("fpl circuit breaker open",
+			"failures", cb.failures,
+			"backoff", cb.backoff,
+			"open_until", cb.openUntil,
+		)
 	}
 }

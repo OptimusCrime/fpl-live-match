@@ -5,11 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"time"
 )
 
 const baseURL = "https://fantasy.premierleague.com/api"
+
+// maxErrorBodyLog caps how much of a non-200 response body is included in logs.
+const maxErrorBodyLog = 512
 
 // Mimic a real browser to avoid 403s from FPL's CDN.
 const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -40,21 +45,25 @@ func NewHTTPClient() *HTTPClient {
 
 func (c *HTTPClient) get(ctx context.Context, path string, v any) error {
 	if !c.cb.allow() {
+		slog.WarnContext(ctx, "fpl request rejected, circuit breaker open", "path", path)
 		return ErrCircuitOpen
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
 	if err != nil {
-		return err
+		slog.ErrorContext(ctx, "fpl request could not be built", "path", path, "err", err)
+		return fmt.Errorf("fpl: GET %s: build request: %w", path, err)
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
 	req.Header.Set("Accept-Language", "en-GB,en;q=0.9")
 	req.Header.Set("Referer", "https://fantasy.premierleague.com/")
 
+	start := time.Now()
 	resp, err := c.http.Do(req)
 	if err != nil {
 		c.cb.failure()
+		slog.ErrorContext(ctx, "fpl request failed", "path", path, "duration", time.Since(start), "err", err)
 		return fmt.Errorf("fpl: GET %s: %w", path, err)
 	}
 	defer resp.Body.Close()
@@ -64,13 +73,28 @@ func (c *HTTPClient) get(ctx context.Context, path string, v any) error {
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
 			c.cb.failure()
 		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyLog))
+		slog.ErrorContext(ctx, "fpl request returned non-200 status",
+			"path", path,
+			"status", resp.StatusCode,
+			"content_type", resp.Header.Get("Content-Type"),
+			"duration", time.Since(start),
+			"body", string(body),
+		)
 		return fmt.Errorf("fpl: GET %s: status %d", path, resp.StatusCode)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
-		return err
+		slog.ErrorContext(ctx, "fpl response could not be decoded",
+			"path", path,
+			"content_type", resp.Header.Get("Content-Type"),
+			"duration", time.Since(start),
+			"err", err,
+		)
+		return fmt.Errorf("fpl: GET %s: decode response: %w", path, err)
 	}
 	c.cb.success()
+	slog.DebugContext(ctx, "fpl request succeeded", "path", path, "duration", time.Since(start))
 	return nil
 }
 
